@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { getDatabase } from "@netlify/database";
 
 // Narrow neon's union return type to the row-array form we always use.
 export type Row = Record<string, any>;
@@ -8,13 +9,24 @@ let _sql: Sql | null = null;
 
 export function sql(): Sql {
   if (!_sql) {
+    // Prefer an explicit connection string (local `netlify dev`, or a manually
+    // set DATABASE_URL); otherwise use Netlify DB, whose connection is injected
+    // by the platform at runtime and read via @netlify/database.
     const url = process.env.NETLIFY_DATABASE_URL ?? process.env.DATABASE_URL;
-    if (!url) {
-      throw new Error(
-        "NETLIFY_DATABASE_URL is not set. Provision Netlify DB with `netlify db init` (or set DATABASE_URL to a Postgres connection string).",
-      );
+    if (url) {
+      _sql = neon(url) as unknown as Sql;
+    } else {
+      try {
+        _sql = neon(getDatabase().connectionString) as unknown as Sql;
+      } catch {
+        const present = Object.keys(process.env)
+          .filter((k) => k.startsWith("NETLIFY") || k.includes("DATABASE") || k.includes("DB_") || k.endsWith("_DB"))
+          .join(", ");
+        throw new Error(
+          `No database connection available. Provision Netlify DB (\`netlify db init\`) or set DATABASE_URL. DB-related env keys present: [${present || "none"}]`,
+        );
+      }
     }
-    _sql = neon(url) as unknown as Sql;
   }
   return _sql;
 }
