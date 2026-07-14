@@ -127,6 +127,13 @@ export const CheckIcon = (p: P) => (
   </svg>
 );
 
+export const ShareIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 14V3.5m-4 3.5 4-3.5L16 7" />
+    <path d="M5 12v8h14v-8" />
+  </svg>
+);
+
 export const PawIcon = (p: P) => (
   <svg {...base({ fill: "currentColor", stroke: "none", ...p })}>
     <ellipse cx="6.2" cy="10" rx="1.9" ry="2.5" transform="rotate(-24 6.2 10)" />

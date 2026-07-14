@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Sparkline } from "../components/GrowthChart";
-import { ArrowDownIcon, ArrowUpIcon, GearIcon, PawIcon } from "../components/Icons";
+import { ArrowDownIcon, ArrowUpIcon, GearIcon, PawIcon, ShareIcon } from "../components/Icons";
 import { TrendBadge } from "../components/TrendBadge";
 import { useKittens, useSettings, useWeighIns } from "../hooks/useData";
 import { fmtAge, fmtRate, fmtSigned, fmtWeight, relTime } from "../lib/format";
@@ -43,9 +43,14 @@ export function Dashboard() {
             </p>
           )}
         </div>
-        <Link to="/settings" aria-label="Settings" className="rounded-full p-2 text-muted active:bg-surface">
-          <GearIcon />
-        </Link>
+        <div className="flex items-center">
+          <Link to="/report" aria-label="Vet report & export" className="rounded-full p-2 text-muted active:bg-surface">
+            <ShareIcon />
+          </Link>
+          <Link to="/settings" aria-label="Settings" className="rounded-full p-2 text-muted active:bg-surface">
+            <GearIcon />
+          </Link>
+        </div>
       </header>
 
       {kittens.isLoading || weighIns.isLoading ? (

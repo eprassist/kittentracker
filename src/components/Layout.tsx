@@ -12,10 +12,10 @@ const tabs = [
 export function Layout() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-page">
-      <main className="flex-1 px-4 pt-safe pb-28">
+      <main className="flex-1 px-4 pt-safe pb-28 print:pb-0">
         <Outlet />
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-surface/90 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-surface/90 backdrop-blur print:hidden">
         <div className="mx-auto flex max-w-lg items-stretch justify-around pb-safe">
           {tabs.map(({ to, label, icon: Icon, primary }) =>
             primary ? (

@@ -76,6 +76,19 @@ export function Settings() {
       </form>
 
       <div className="mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
+        <div className="text-sm font-semibold text-ink">Vet report & export</div>
+        <p className="mt-1 text-xs text-ink-2">
+          A printable growth report (save as PDF to send to your vet) plus a CSV download of every weigh-in.
+        </p>
+        <Link
+          to="/report"
+          className="mt-3 inline-block rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white active:scale-[0.98]"
+        >
+          Open vet report
+        </Link>
+      </div>
+
+      <div className="mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-black/5">
         <div className="text-sm font-semibold text-ink">Household</div>
         <p className="mt-1 text-xs text-ink-2">
           This device stays signed in with the shared passcode. Lock the app if you're handing your phone to someone else.
