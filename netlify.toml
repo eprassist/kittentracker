@@ -1,0 +1,17 @@
+# Netlify configuration for Litter Watch
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+
+# SPA fallback — function routes (/api/*) are matched before redirects.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

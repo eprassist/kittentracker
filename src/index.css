@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Warm, light chart-friendly surfaces + ink scale */
+  --color-page: #f7f4ee;
+  --color-surface: #fcfcfb;
+  --color-ink: #0b0b0b;
+  --color-ink-2: #52514e;
+  --color-muted: #898781;
+  --color-hairline: #e1e0d9;
+  --color-baseline: #c3c2b7;
+
+  /* Brand accent (paw orange) */
+  --color-accent: #e2662f;
+  --color-accent-soft: #fbeadf;
+
+  /* Status — used with an icon + label, never color alone */
+  --color-good: #006300;
+  --color-good-bright: #0ca30c;
+  --color-warn: #b97b00;
+  --color-bad: #d03b3b;
+}
+
+html {
+  background: var(--color-page);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility mt-safe {
+  margin-top: env(safe-area-inset-top);
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
