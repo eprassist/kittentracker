@@ -12,7 +12,7 @@ import {
 } from "../hooks/useData";
 import { fmtAge, fmtWeight } from "../lib/format";
 import { KITTEN_COLORS, nextColor } from "../lib/palette";
-import type { Kitten } from "../lib/types";
+import type { CatRole, CatSex, Kitten } from "../lib/types";
 import { ErrorNote } from "./Dashboard";
 
 export function Kittens() {
@@ -22,7 +22,8 @@ export function Kittens() {
   const [editing, setEditing] = useState<Kitten | "new" | null>(null);
 
   const kittens = kittensQuery.data ?? [];
-  const active = kittens.filter((k) => !k.archived);
+  const active = kittens.filter((k) => !k.archived && k.role !== "parent");
+  const parents = kittens.filter((k) => !k.archived && k.role === "parent");
   const archived = kittens.filter((k) => k.archived);
 
   const latestByKitten = useMemo(() => {
@@ -76,6 +77,17 @@ export function Kittens() {
           <KittenRow key={k.id} kitten={k} latest={latestByKitten.get(k.id)} onEdit={() => setEditing(k)} />
         ))}
       </div>
+
+      {parents.length > 0 && (
+        <>
+          <h2 className="mt-6 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Parents</h2>
+          <div className="flex flex-col gap-2">
+            {parents.map((k) => (
+              <KittenRow key={k.id} kitten={k} latest={latestByKitten.get(k.id)} onEdit={() => setEditing(k)} />
+            ))}
+          </div>
+        </>
+      )}
 
       {archived.length > 0 && (
         <>
@@ -133,6 +145,9 @@ function KittenFormModal({ kitten, takenColors, onClose }: { kitten: Kitten | nu
   const [color, setColor] = useState(kitten?.color ?? nextColor(takenColors));
   const [birthDate, setBirthDate] = useState(kitten?.birth_date ?? "");
   const [notes, setNotes] = useState(kitten?.notes ?? "");
+  const [sex, setSex] = useState<CatSex>(kitten?.sex ?? "unknown");
+  const [neutered, setNeutered] = useState(kitten?.neutered ?? false);
+  const [role, setRole] = useState<CatRole>(kitten?.role ?? "kitten");
   const [error, setError] = useState<string | null>(null);
   const busy = create.isPending || update.isPending || del.isPending;
 
@@ -145,7 +160,15 @@ function KittenFormModal({ kitten, takenColors, onClose }: { kitten: Kitten | nu
       return;
     }
     try {
-      const body = { name: name.trim(), color, birth_date: birthDate || null, notes: notes.trim() || null };
+      const body = {
+        name: name.trim(),
+        color,
+        birth_date: birthDate || null,
+        notes: notes.trim() || null,
+        sex,
+        neutered,
+        role,
+      };
       if (kitten) await update.mutateAsync({ id: kitten.id, ...body });
       else await create.mutateAsync(body);
       onClose();
@@ -191,6 +214,54 @@ function KittenFormModal({ kitten, takenColors, onClose }: { kitten: Kitten | nu
             })}
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="mb-1 block text-xs font-medium text-ink-2">Sex</span>
+            <div className="grid grid-cols-3 rounded-xl bg-hairline/60 p-1 text-sm font-medium">
+              {(
+                [
+                  { v: "male", l: "♂" },
+                  { v: "female", l: "♀" },
+                  { v: "unknown", l: "?" },
+                ] as { v: CatSex; l: string }[]
+              ).map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  aria-label={o.v}
+                  onClick={() => setSex(o.v)}
+                  className={`rounded-lg py-1.5 ${sex === o.v ? "bg-surface text-ink shadow-sm" : "text-ink-2"}`}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-ink-2">Who is this?</span>
+            <div className="grid grid-cols-2 rounded-xl bg-hairline/60 p-1 text-sm font-medium">
+              {(
+                [
+                  { v: "kitten", l: "Kitten" },
+                  { v: "parent", l: "Parent" },
+                ] as { v: CatRole; l: string }[]
+              ).map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setRole(o.v)}
+                  className={`rounded-lg py-1.5 ${role === o.v ? "bg-surface text-ink shadow-sm" : "text-ink-2"}`}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2.5 rounded-xl border border-hairline bg-page px-3.5 py-2.5">
+          <input type="checkbox" checked={neutered} onChange={(e) => setNeutered(e.target.checked)} className="h-4 w-4 accent-[#e2662f]" />
+          <span className="text-sm text-ink">{sex === "female" ? "Spayed" : "Neutered"}</span>
+        </label>
         <label>
           <span className="mb-1 block text-xs font-medium text-ink-2">Birth date</span>
           <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={inputCls} />

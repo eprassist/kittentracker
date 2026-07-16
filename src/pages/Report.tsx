@@ -3,16 +3,18 @@ import { Link } from "react-router-dom";
 import { GrowthChart } from "../components/GrowthChart";
 import { ChevronLeftIcon } from "../components/Icons";
 import { TrendBadge } from "../components/TrendBadge";
-import { useKittens, useSettings, useWeighIns } from "../hooks/useData";
+import { useHealthRecords, useKittens, useSettings, useWeighIns } from "../hooks/useData";
+import { careType, sexLabel } from "../lib/care";
 import { downloadCsv } from "../lib/export";
 import { fmtAge, fmtRate, fmtSigned, fmtTime, fmtWeight } from "../lib/format";
 import { avgRate, computeStats } from "../lib/growth";
-import type { Kitten, WeighIn } from "../lib/types";
+import type { HealthRecord, Kitten, WeighIn } from "../lib/types";
 import { ErrorNote } from "./Dashboard";
 
 export function Report() {
   const kittensQuery = useKittens();
   const weighInsQuery = useWeighIns();
+  const recordsQuery = useHealthRecords();
   const settings = useSettings();
   const [selected, setSelected] = useState<string>("all");
 
@@ -101,7 +103,13 @@ export function Report() {
       </header>
 
       {shown.map((k) => (
-        <KittenReport key={k.id} kitten={k} weighIns={byKitten.get(k.id) ?? []} minGain={minGain} />
+        <KittenReport
+          key={k.id}
+          kitten={k}
+          weighIns={byKitten.get(k.id) ?? []}
+          records={(recordsQuery.data ?? []).filter((r) => r.cat_id === k.id)}
+          minGain={minGain}
+        />
       ))}
     </div>
   );
@@ -122,7 +130,17 @@ function FilterChip({ label, color, selected, onClick }: { label: string; color?
   );
 }
 
-function KittenReport({ kitten, weighIns, minGain }: { kitten: Kitten; weighIns: WeighIn[]; minGain: number }) {
+function KittenReport({
+  kitten,
+  weighIns,
+  records,
+  minGain,
+}: {
+  kitten: Kitten;
+  weighIns: WeighIn[];
+  records: HealthRecord[];
+  minGain: number;
+}) {
   const stats = computeStats(weighIns, minGain);
   const weekRate = avgRate(weighIns, 7);
   const totalGain = weighIns.length >= 2 ? weighIns[weighIns.length - 1].weight_grams - weighIns[0].weight_grams : null;
@@ -135,6 +153,8 @@ function KittenReport({ kitten, weighIns, minGain }: { kitten: Kitten; weighIns:
         <h3 className="text-lg font-bold text-ink">{kitten.name}</h3>
         <span className="text-xs text-muted">
           {[
+            kitten.role === "parent" ? "parent" : null,
+            sexLabel(kitten.sex, kitten.neutered),
             kitten.birth_date ? `born ${new Date(`${kitten.birth_date}T00:00:00`).toLocaleDateString()}` : null,
             fmtAge(kitten.birth_date),
           ]
@@ -160,6 +180,26 @@ function KittenReport({ kitten, weighIns, minGain }: { kitten: Kitten; weighIns:
       {weighIns.length > 0 && (
         <div className="mb-3 rounded-xl border border-hairline bg-surface p-2 print:border-0 print:p-0">
           <GrowthChart kittens={[kitten]} weighIns={weighIns} height={180} />
+        </div>
+      )}
+
+      {records.length > 0 && (
+        <div className="mb-3">
+          <h4 className="mb-1 text-xs font-semibold tracking-wide text-muted uppercase">Health history</h4>
+          <table className="w-full border-collapse text-sm">
+            <tbody>
+              {records.map((r) => (
+                <tr key={r.id} className="border-b border-hairline align-top">
+                  <td className="py-1.5 pr-2 whitespace-nowrap text-ink">
+                    {new Date(`${r.happened_on.slice(0, 10)}T00:00:00`).toLocaleDateString()}
+                  </td>
+                  <td className="py-1.5 pr-2 whitespace-nowrap text-ink-2">{careType(r.type).label}</td>
+                  <td className="py-1.5 pr-2 font-medium text-ink">{r.title}</td>
+                  <td className="py-1.5 text-xs text-ink-2">{r.notes ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

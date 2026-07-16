@@ -1,14 +1,25 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { GrowthChart } from "../components/GrowthChart";
-import { ChevronLeftIcon, PencilIcon, TrashIcon } from "../components/Icons";
+import { ChevronLeftIcon, PencilIcon, PlusIcon, TrashIcon } from "../components/Icons";
 import { MediaThumb, mediaItems, useMediaViewer } from "../components/Media";
 import { Modal } from "../components/Modal";
 import { TrendBadge } from "../components/TrendBadge";
-import { useDeleteWeighIn, useKittens, useSettings, useUpdateWeighIn, useWeighIns } from "../hooks/useData";
+import {
+  useCreateHealthRecord,
+  useDeleteHealthRecord,
+  useDeleteWeighIn,
+  useHealthRecords,
+  useKittens,
+  useSchedules,
+  useSettings,
+  useUpdateWeighIn,
+  useWeighIns,
+} from "../hooks/useData";
+import { CARE_TYPES, careType, dueStatus, sexLabel, todayInput } from "../lib/care";
 import { fmtAge, fmtDateTime, fmtSigned, fmtWeight, toLocalInputValue } from "../lib/format";
 import { avgRate, computeStats } from "../lib/growth";
-import type { WeighIn } from "../lib/types";
+import type { Kitten, WeighIn } from "../lib/types";
 
 export function KittenProfile() {
   const { id } = useParams<{ id: string }>();
@@ -58,9 +69,13 @@ export function KittenProfile() {
         {kitten.archived && <span className="rounded-full bg-hairline px-2 py-0.5 text-xs font-medium text-ink-2">archived</span>}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+        {kitten.role === "parent" && (
+          <span className="rounded-full bg-hairline px-2 py-0.5 font-medium text-ink-2">Parent</span>
+        )}
+        {sexLabel(kitten.sex, kitten.neutered) && <span>{sexLabel(kitten.sex, kitten.neutered)}</span>}
         {fmtAge(kitten.birth_date) && <span>{fmtAge(kitten.birth_date)}</span>}
         {kitten.birth_date && <span>born {new Date(`${kitten.birth_date}T00:00:00`).toLocaleDateString()}</span>}
-        <TrendBadge trend={stats.trend} label={stats.trendLabel} />
+        {kitten.role !== "parent" && <TrendBadge trend={stats.trend} label={stats.trendLabel} />}
       </div>
       {kitten.notes && <p className="mb-4 text-sm text-ink-2">{kitten.notes}</p>}
 
@@ -82,6 +97,8 @@ export function KittenProfile() {
       <div className="mb-4 rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-black/5">
         <GrowthChart kittens={[kitten]} weighIns={asc} height={240} />
       </div>
+
+      <HealthSection kitten={kitten} />
 
       {gallery.length > 0 && (
         <>
@@ -143,6 +160,160 @@ export function KittenProfile() {
       {editing && <EditWeighInModal weighIn={editing} onClose={() => setEditing(null)} />}
       {viewer}
     </div>
+  );
+}
+
+function HealthSection({ kitten }: { kitten: Kitten }) {
+  const records = useHealthRecords(kitten.id);
+  const schedules = useSchedules();
+  const deleteRecord = useDeleteHealthRecord();
+  const [adding, setAdding] = useState(false);
+
+  const catSchedules = (schedules.data ?? []).filter((s) => s.cat_id === kitten.id);
+  const list = records.data ?? [];
+
+  return (
+    <>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-ink">Health record</h2>
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="flex items-center gap-1 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-semibold text-ink-2 active:bg-page"
+        >
+          <PlusIcon width={13} height={13} strokeWidth={2.4} /> Add
+        </button>
+      </div>
+
+      {catSchedules.length > 0 && (
+        <div className="mb-2 flex flex-col gap-1.5">
+          {catSchedules.map((s) => {
+            const status = dueStatus(s.next_due);
+            return (
+              <Link
+                key={s.id}
+                to="/care"
+                className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm shadow-sm ring-1 ring-black/5"
+              >
+                <span>{careType(s.type).emoji}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">{s.title}</span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    status.tone === "overdue"
+                      ? "bg-bad/10 text-bad"
+                      : status.tone === "today" || status.tone === "soon"
+                        ? "bg-warn/10 text-warn"
+                        : "bg-hairline/60 text-ink-2"
+                  }`}
+                >
+                  {status.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {list.length === 0 ? (
+        <p className="mb-4 rounded-2xl bg-surface p-4 text-center text-xs text-muted shadow-sm">
+          No health records yet — log vaccinations, flea & worm treatments and vet visits here.
+        </p>
+      ) : (
+        <div className="mb-4 flex flex-col gap-1.5">
+          {list.map((r) => (
+            <div key={r.id} className="flex items-start gap-2.5 rounded-xl bg-surface px-3 py-2.5 shadow-sm ring-1 ring-black/5">
+              <span className="mt-0.5">{careType(r.type).emoji}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-ink">{r.title}</div>
+                <div className="text-xs text-muted">
+                  {new Date(`${r.happened_on.slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </div>
+                {r.notes && <p className="mt-0.5 text-xs text-ink-2">{r.notes}</p>}
+              </div>
+              <button
+                type="button"
+                aria-label="Delete record"
+                disabled={deleteRecord.isPending}
+                onClick={() => {
+                  if (window.confirm(`Delete "${r.title}" from ${kitten.name}'s health record?`)) deleteRecord.mutate(r.id);
+                }}
+                className="rounded-lg p-1.5 text-muted active:bg-page disabled:opacity-50"
+              >
+                <TrashIcon width={15} height={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding && <AddRecordModal kitten={kitten} onClose={() => setAdding(false)} />}
+    </>
+  );
+}
+
+function AddRecordModal({ kitten, onClose }: { kitten: Kitten; onClose: () => void }) {
+  const create = useCreateHealthRecord();
+  const [type, setType] = useState<string>("vaccination");
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(todayInput());
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const inputCls = "w-full rounded-xl border border-hairline bg-page px-3.5 py-2.5 text-ink outline-none focus:border-accent";
+
+  async function save() {
+    if (!title.trim() || !date) {
+      setError("A title and date are required");
+      return;
+    }
+    try {
+      await create.mutateAsync({ cat_id: kitten.id, type: type as never, title: title.trim(), happened_on: date, notes: notes.trim() || null });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save");
+    }
+  }
+
+  return (
+    <Modal title={`Add to ${kitten.name}'s record`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <label>
+          <span className="mb-1 block text-xs font-medium text-ink-2">Type</span>
+          <select value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>
+            {CARE_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.emoji} {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-medium text-ink-2">What</span>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. First vaccination (FVRCP)" className={inputCls} autoFocus />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-medium text-ink-2">Date</span>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs font-medium text-ink-2">Notes</span>
+          <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Vaccine name, batch, vet…" className={inputCls} />
+        </label>
+        {error && <p className="text-sm text-bad">{error}</p>}
+        <button
+          type="button"
+          onClick={save}
+          disabled={create.isPending}
+          className="rounded-xl bg-accent px-4 py-3 font-semibold text-white disabled:opacity-50"
+        >
+          {create.isPending ? "Saving…" : "Add record"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

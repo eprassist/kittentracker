@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import type { HouseholdSettings, Kitten, WeighIn, WeighInInput } from "../lib/types";
+import type { CareSchedule, HealthRecord, HouseholdSettings, Kitten, PushDevice, WeighIn, WeighInInput } from "../lib/types";
 
 // Postgres returns numeric columns as strings — coerce once, here.
 function coerceWeighIn(w: WeighIn): WeighIn {
@@ -92,6 +92,86 @@ export function useSaveSettings() {
   return useMutation({
     mutationFn: (body: HouseholdSettings) => api<HouseholdSettings>("/api/settings", { method: "PUT", body: JSON.stringify(body) }),
     onSuccess: invalidate,
+  });
+}
+
+export function useHealthRecords(catId?: string) {
+  return useQuery({
+    queryKey: ["health-records", catId ?? "all"],
+    queryFn: () => api<HealthRecord[]>(catId ? `/api/health-records?cat_id=${catId}` : "/api/health-records"),
+  });
+}
+
+export function useCreateHealthRecord() {
+  const invalidate = useInvalidate("health-records");
+  return useMutation({
+    mutationFn: (body: Partial<HealthRecord>) =>
+      api<HealthRecord>("/api/health-records", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteHealthRecord() {
+  const invalidate = useInvalidate("health-records");
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/health-records/${id}`, { method: "DELETE" }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSchedules() {
+  return useQuery({
+    queryKey: ["schedules"],
+    queryFn: () => api<CareSchedule[]>("/api/schedules"),
+  });
+}
+
+export function useCreateSchedule() {
+  const invalidate = useInvalidate("schedules");
+  return useMutation({
+    mutationFn: (body: Partial<CareSchedule>) =>
+      api<CareSchedule>("/api/schedules", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateSchedule() {
+  const invalidate = useInvalidate("schedules");
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<CareSchedule> & { id: string }) =>
+      api<CareSchedule>(`/api/schedules/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteSchedule() {
+  const invalidate = useInvalidate("schedules");
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/schedules/${id}`, { method: "DELETE" }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useMarkScheduleDone() {
+  const invalidate = useInvalidate("schedules", "health-records");
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/schedules/${id}/done`, { method: "POST", body: JSON.stringify({}) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useCalendarUrl() {
+  return useQuery({
+    queryKey: ["calendar-url"],
+    queryFn: () => api<{ url: string }>("/api/calendar/url"),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+export function usePushDevices() {
+  return useQuery({
+    queryKey: ["push-devices"],
+    queryFn: () => api<PushDevice[]>("/api/push/subscriptions"),
   });
 }
 

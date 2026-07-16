@@ -15,6 +15,30 @@ interface Kitten {
   birth_date: string | null;
   notes: string | null;
   archived: boolean;
+  sex: string;
+  neutered: boolean;
+  role: string;
+  created_at: string;
+}
+
+interface HealthRecord {
+  id: string;
+  cat_id: string;
+  type: string;
+  title: string;
+  happened_on: string;
+  notes: string | null;
+  created_at: string;
+}
+
+interface CareSchedule {
+  id: string;
+  cat_id: string;
+  type: string;
+  title: string;
+  interval_days: number | null;
+  next_due: string;
+  notes: string | null;
   created_at: string;
 }
 
@@ -32,6 +56,8 @@ interface WeighIn {
 
 const kittens = new Map<string, Kitten>();
 const weighIns = new Map<string, WeighIn>();
+const healthRecords = new Map<string, HealthRecord>();
+const schedules = new Map<string, CareSchedule>();
 const media = new Map<string, { ct: string; data: Buffer }>();
 const parts = new Map<string, Buffer[]>();
 let settings = { min_daily_gain: 7 };
@@ -78,6 +104,9 @@ function seedSample() {
       birth_date: birth,
       notes: "Sample kitten — safe to edit or delete",
       archived: false,
+      sex: i % 2 ? "female" : "male",
+      neutered: false,
+      role: "kitten",
       created_at: new Date().toISOString(),
     });
     for (let d = 6; d >= 0; d--) {
@@ -155,6 +184,9 @@ export function mockApi(): Plugin {
                 birth_date: b.birth_date || null,
                 notes: b.notes || null,
                 archived: false,
+                sex: b.sex ?? "unknown",
+                neutered: Boolean(b.neutered),
+                role: b.role ?? "kitten",
                 created_at: new Date().toISOString(),
               };
               kittens.set(k.id, k);
@@ -217,6 +249,87 @@ export function mockApi(): Plugin {
               weighIns.delete(id);
               return send(res, 204);
             }
+          }
+
+          const recordMatch = p.match(/^\/api\/health-records(?:\/([\w-]+))?$/);
+          if (recordMatch) {
+            const rid = recordMatch[1];
+            if (!rid && req.method === "GET") {
+              const cid = url.searchParams.get("cat_id");
+              return send(res, 200, [...healthRecords.values()]
+                .filter((r) => !cid || r.cat_id === cid)
+                .sort((a, b) => b.happened_on.localeCompare(a.happened_on)));
+            }
+            if (!rid && req.method === "POST") {
+              const b = JSON.parse((await readBody(req)).toString());
+              const r: HealthRecord = { id: randomUUID(), cat_id: b.cat_id, type: b.type ?? "other", title: b.title, happened_on: b.happened_on, notes: b.notes ?? null, created_at: new Date().toISOString() };
+              healthRecords.set(r.id, r);
+              return send(res, 201, r);
+            }
+            if (rid && req.method === "PUT") {
+              const cur = healthRecords.get(rid);
+              if (!cur) return send(res, 404, { error: "Not found" });
+              const merged = { ...cur, ...JSON.parse((await readBody(req)).toString()), id: rid };
+              healthRecords.set(rid, merged);
+              return send(res, 200, merged);
+            }
+            if (rid && req.method === "DELETE") {
+              healthRecords.delete(rid);
+              return send(res, 204);
+            }
+          }
+
+          const scheduleMatch = p.match(/^\/api\/schedules(?:\/([\w-]+))?(\/done)?$/);
+          if (scheduleMatch) {
+            const sid = scheduleMatch[1];
+            const isDone = Boolean(scheduleMatch[2]);
+            if (!sid && req.method === "GET") {
+              return send(res, 200, [...schedules.values()].sort((a, b) => a.next_due.localeCompare(b.next_due)));
+            }
+            if (!sid && req.method === "POST") {
+              const b = JSON.parse((await readBody(req)).toString());
+              const s: CareSchedule = { id: randomUUID(), cat_id: b.cat_id, type: b.type ?? "other", title: b.title, interval_days: b.interval_days ?? null, next_due: b.next_due, notes: b.notes ?? null, created_at: new Date().toISOString() };
+              schedules.set(s.id, s);
+              return send(res, 201, s);
+            }
+            if (sid && isDone && req.method === "POST") {
+              const cur = schedules.get(sid);
+              if (!cur) return send(res, 404, { error: "Not found" });
+              const doneOn = new Date().toISOString().slice(0, 10);
+              const r: HealthRecord = { id: randomUUID(), cat_id: cur.cat_id, type: cur.type, title: cur.title, happened_on: doneOn, notes: cur.notes, created_at: new Date().toISOString() };
+              healthRecords.set(r.id, r);
+              if (cur.interval_days) {
+                const next = new Date(`${doneOn}T00:00:00`);
+                next.setDate(next.getDate() + cur.interval_days);
+                cur.next_due = next.toISOString().slice(0, 10);
+                return send(res, 200, { schedule: cur, completed: true });
+              }
+              schedules.delete(sid);
+              return send(res, 200, { schedule: null, completed: true });
+            }
+            if (sid && !isDone && req.method === "PUT") {
+              const cur = schedules.get(sid);
+              if (!cur) return send(res, 404, { error: "Not found" });
+              const merged = { ...cur, ...JSON.parse((await readBody(req)).toString()), id: sid };
+              schedules.set(sid, merged);
+              return send(res, 200, merged);
+            }
+            if (sid && !isDone && req.method === "DELETE") {
+              schedules.delete(sid);
+              return send(res, 204);
+            }
+          }
+
+          if (p === "/api/calendar/url") return send(res, 200, { url: "http://localhost:5173/api/calendar.ics?token=demo" });
+          if (p === "/api/calendar.ics") {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "text/calendar");
+            return res.end("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR");
+          }
+          if (p === "/api/push/vapid-key") return send(res, 200, { key: null });
+          if (p === "/api/push/subscriptions") {
+            if (req.method === "GET") return send(res, 200, []);
+            return send(res, 201, { ok: true });
           }
 
           if (p === "/api/media" && req.method === "POST") {

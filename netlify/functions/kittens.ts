@@ -23,9 +23,12 @@ export default async (req: Request, context: Context): Promise<Response> => {
     const color = typeof b?.color === "string" ? b.color : "#2a78d6";
     const birthDate = b?.birth_date || null;
     const notes = typeof b?.notes === "string" && b.notes.trim() ? b.notes.trim() : null;
+    const sex = ["male", "female", "unknown"].includes(b?.sex) ? b?.sex : "unknown";
+    const role = ["kitten", "parent"].includes(b?.role) ? b?.role : "kitten";
+    const neutered = Boolean(b?.neutered);
     const rows = await q`
-      insert into kittens (name, color, birth_date, notes)
-      values (${name}, ${color}, ${birthDate}, ${notes})
+      insert into kittens (name, color, birth_date, notes, sex, role, neutered)
+      values (${name}, ${color}, ${birthDate}, ${notes}, ${sex}, ${role}, ${neutered})
       returning *`;
     return json(rows[0], 201);
   }
@@ -42,6 +45,9 @@ export default async (req: Request, context: Context): Promise<Response> => {
       birth_date: "birth_date" in b ? b.birth_date || null : cur.birth_date,
       notes: "notes" in b ? (typeof b.notes === "string" && b.notes.trim() ? b.notes.trim() : null) : cur.notes,
       archived: "archived" in b ? Boolean(b.archived) : cur.archived,
+      sex: "sex" in b && ["male", "female", "unknown"].includes(b.sex) ? b.sex : cur.sex,
+      role: "role" in b && ["kitten", "parent"].includes(b.role) ? b.role : cur.role,
+      neutered: "neutered" in b ? Boolean(b.neutered) : cur.neutered,
     };
     if (!merged.name) return err("Name is required", 400);
     const rows = await q`
@@ -50,7 +56,10 @@ export default async (req: Request, context: Context): Promise<Response> => {
         color = ${merged.color},
         birth_date = ${merged.birth_date},
         notes = ${merged.notes},
-        archived = ${merged.archived}
+        archived = ${merged.archived},
+        sex = ${merged.sex},
+        role = ${merged.role},
+        neutered = ${merged.neutered}
       where id = ${id}
       returning *`;
     return json(rows[0]);

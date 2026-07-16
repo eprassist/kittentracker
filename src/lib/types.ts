@@ -1,3 +1,6 @@
+export type CatSex = "male" | "female" | "unknown";
+export type CatRole = "kitten" | "parent";
+
 export interface Kitten {
   id: string;
   name: string;
@@ -5,6 +8,38 @@ export interface Kitten {
   birth_date: string | null; // YYYY-MM-DD
   notes: string | null;
   archived: boolean;
+  sex: CatSex;
+  neutered: boolean;
+  role: CatRole;
+  created_at: string;
+}
+
+export type CareType = "vaccination" | "flea_worm" | "dental" | "vet_visit" | "medication" | "grooming" | "other";
+
+export interface HealthRecord {
+  id: string;
+  cat_id: string;
+  type: CareType;
+  title: string;
+  happened_on: string; // YYYY-MM-DD
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CareSchedule {
+  id: string;
+  cat_id: string;
+  type: CareType;
+  title: string;
+  interval_days: number | null; // null = one-off
+  next_due: string; // YYYY-MM-DD
+  notes: string | null;
+  created_at: string;
+}
+
+export interface PushDevice {
+  endpoint: string;
+  label: string | null;
   created_at: string;
 }
 

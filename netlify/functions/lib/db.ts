@@ -65,6 +65,39 @@ export function ensureSchema(): Promise<void> {
         key text primary key,
         value jsonb not null
       )`;
+    // Cat identity extras (added after v1 — IF NOT EXISTS keeps this idempotent)
+    await q`alter table kittens add column if not exists sex text not null default 'unknown'`;
+    await q`alter table kittens add column if not exists neutered boolean not null default false`;
+    await q`alter table kittens add column if not exists role text not null default 'kitten'`;
+    await q`
+      create table if not exists health_records (
+        id uuid primary key default gen_random_uuid(),
+        cat_id uuid not null references kittens(id) on delete cascade,
+        type text not null,
+        title text not null,
+        happened_on date not null,
+        notes text,
+        created_at timestamptz not null default now()
+      )`;
+    await q`create index if not exists health_records_cat_idx on health_records (cat_id, happened_on desc)`;
+    await q`
+      create table if not exists care_schedules (
+        id uuid primary key default gen_random_uuid(),
+        cat_id uuid not null references kittens(id) on delete cascade,
+        type text not null,
+        title text not null,
+        interval_days int,
+        next_due date not null,
+        notes text,
+        created_at timestamptz not null default now()
+      )`;
+    await q`
+      create table if not exists push_subscriptions (
+        endpoint text primary key,
+        subscription jsonb not null,
+        label text,
+        created_at timestamptz not null default now()
+      )`;
   })().catch((e) => {
     schemaReady = undefined; // allow retry on next request
     throw e;

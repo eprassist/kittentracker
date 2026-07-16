@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthGate } from "./components/AuthGate";
 import { Layout } from "./components/Layout";
+import { Care } from "./pages/Care";
 import { ChartPage } from "./pages/ChartPage";
 import { Dashboard } from "./pages/Dashboard";
 import { KittenProfile } from "./pages/KittenProfile";
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/kittens/:id" element={<KittenProfile />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/report" element={<Report />} />
+            <Route path="/care" element={<Care />} />
             <Route path="*" element={<Dashboard />} />
           </Route>
         </Routes>

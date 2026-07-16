@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { Sparkline } from "../components/GrowthChart";
 import { ArrowDownIcon, ArrowUpIcon, GearIcon, PawIcon, ShareIcon } from "../components/Icons";
 import { TrendBadge } from "../components/TrendBadge";
-import { useKittens, useSettings, useWeighIns } from "../hooks/useData";
+import { useKittens, useSchedules, useSettings, useWeighIns } from "../hooks/useData";
+import { careType, dueStatus } from "../lib/care";
 import { fmtAge, fmtRate, fmtSigned, fmtWeight, relTime } from "../lib/format";
 import { computeStats } from "../lib/growth";
 import type { Kitten, WeighIn } from "../lib/types";
@@ -13,7 +14,8 @@ export function Dashboard() {
   const weighIns = useWeighIns();
   const settings = useSettings();
 
-  const active = (kittens.data ?? []).filter((k) => !k.archived);
+  const active = (kittens.data ?? []).filter((k) => !k.archived && k.role !== "parent");
+  const parents = (kittens.data ?? []).filter((k) => !k.archived && k.role === "parent");
   const minGain = settings.data?.min_daily_gain ?? 7;
 
   const byKitten = useMemo(() => {
@@ -63,7 +65,7 @@ export function Dashboard() {
             weighIns.refetch();
           }}
         />
-      ) : active.length === 0 ? (
+      ) : active.length === 0 && parents.length === 0 ? (
         <div className="rounded-2xl bg-surface p-6 text-center shadow-sm">
           <div className="mb-2 text-4xl">🐈</div>
           <p className="mb-4 text-sm text-ink-2">No kittens yet — add your litter to get started.</p>
@@ -72,13 +74,77 @@ export function Dashboard() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {active.map((k) => (
-            <KittenTile key={k.id} kitten={k} weighIns={byKitten.get(k.id) ?? []} minGain={minGain} />
-          ))}
-        </div>
+        <>
+          <CareDueCard />
+          <div className="grid grid-cols-2 gap-3">
+            {active.map((k) => (
+              <KittenTile key={k.id} kitten={k} weighIns={byKitten.get(k.id) ?? []} minGain={minGain} />
+            ))}
+          </div>
+          {parents.length > 0 && (
+            <>
+              <h2 className="mt-5 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Parents</h2>
+              <div className="flex flex-col gap-2">
+                {parents.map((k) => {
+                  const latest = byKitten.get(k.id)?.at(-1);
+                  return (
+                    <Link
+                      key={k.id}
+                      to={`/kittens/${k.id}`}
+                      className="flex items-center gap-2.5 rounded-2xl bg-surface px-3.5 py-3 shadow-sm ring-1 ring-black/5 active:scale-[0.99]"
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: k.color }} />
+                      <span className="font-semibold text-ink">{k.name}</span>
+                      <span className="text-xs text-muted">
+                        {k.sex === "female" ? "♀" : k.sex === "male" ? "♂" : ""}
+                      </span>
+                      {latest && <span className="ml-auto text-sm font-semibold text-ink-2 tnum">{fmtWeight(latest.weight_grams)}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+function CareDueCard() {
+  const schedules = useSchedules();
+  const items = schedules.data ?? [];
+  if (schedules.isError) return null;
+  const due = items.filter((s) => dueStatus(s.next_due).days <= 3);
+  const next = items[0]; // list is sorted by next_due
+
+  return (
+    <Link
+      to="/care"
+      className={`mb-3 flex items-center gap-2.5 rounded-2xl px-3.5 py-3 shadow-sm ring-1 active:scale-[0.99] ${
+        due.length > 0 ? "bg-warn/10 ring-warn/30" : "bg-surface ring-black/5"
+      }`}
+    >
+      <span className="text-lg">🗓️</span>
+      <span className="min-w-0 flex-1 text-sm">
+        {due.length > 0 ? (
+          <span className="font-semibold text-ink">
+            {due.length} care item{due.length === 1 ? "" : "s"} due —{" "}
+            <span className="font-normal text-ink-2">
+              {careType(due[0].type).emoji} {due[0].title}
+              {due.length > 1 ? "…" : ""}
+            </span>
+          </span>
+        ) : next ? (
+          <span className="text-ink-2">
+            Care schedule · next: {careType(next.type).emoji} {next.title}, {dueStatus(next.next_due).label.toLowerCase()}
+          </span>
+        ) : (
+          <span className="text-ink-2">Care schedule · set up vaccination & treatment reminders</span>
+        )}
+      </span>
+      <span className="text-muted">›</span>
+    </Link>
   );
 }
 
